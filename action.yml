@@ -1,0 +1,49 @@
+name: "dotenv-doctor"
+description: "Audit .env hygiene in your repo: missing vars, placeholder secrets, committed credentials, type mismatches."
+author: "dotenv-doctor contributors"
+
+branding:
+  icon: "shield"
+  color: "green"
+
+inputs:
+  env:
+    description: "Path to the env file to audit"
+    required: false
+    default: ".env"
+  example:
+    description: "Path to the example/template env file"
+    required: false
+    default: ".env.example"
+  disable:
+    description: "Comma-separated rule names to skip (missing,drift,empty,placeholder,type,duplicate,secret)"
+    required: false
+    default: ""
+  version:
+    description: "dotenv-doctor version to run"
+    required: false
+    default: "latest"
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+    - name: Run dotenv-doctor
+      shell: bash
+      env:
+        DD_ENV: ${{ inputs.env }}
+        DD_EXAMPLE: ${{ inputs.example }}
+        DD_DISABLE: ${{ inputs.disable }}
+        DD_VERSION: ${{ inputs.version }}
+      run: |
+        ARGS=(--env "$DD_ENV" --example "$DD_EXAMPLE" --no-color)
+        if [ -n "$DD_DISABLE" ]; then
+          ARGS+=(--disable "$DD_DISABLE")
+        fi
+        if [ "$DD_VERSION" = "latest" ]; then
+          npx --yes dotenv-doctor "${ARGS[@]}"
+        else
+          npx --yes "dotenv-doctor@$DD_VERSION" "${ARGS[@]}"
+        fi

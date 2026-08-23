@@ -1,0 +1,36 @@
+name: Codex PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Run Codex review
+        id: codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: .github/codex/prompts/pr-review.md
+          sandbox: read-only
+          safety-strategy: drop-sudo
+          effort: medium
+
+      - name: Post review comment
+        if: steps.codex.outputs.final-message != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BODY: ${{ steps.codex.outputs.final-message }}
+        run: gh pr comment "$PR_NUMBER" --body "$BODY"

@@ -1,0 +1,50 @@
+{
+  "name": "dotenv-doctor",
+  "version": "0.1.0",
+  "description": "Zero-dependency CLI that audits .env hygiene: missing vars, placeholder secrets, committed credentials, and type mismatches.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "dotenv-doctor": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc --emitDeclarationOnly && node build.mjs",
+    "test": "npm run build && tsc -p tsconfig.test.json && node --test \"dist-test/tests/*.test.js\"",
+    "prepublishOnly": "npm run build",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "dotenv",
+    "env",
+    "environment",
+    "secrets",
+    "security",
+    "lint",
+    "ci",
+    "audit",
+    "cli",
+    "developer-tools"
+  ],
+  "author": "RaikuX",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RaikuX/dotenv-doctor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/RaikuX/dotenv-doctor/issues"
+  },
+  "homepage": "https://github.com/RaikuX/dotenv-doctor#readme",
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}

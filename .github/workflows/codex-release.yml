@@ -1,0 +1,56 @@
+name: Codex Release Notes
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release-notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Assemble prompt
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          {
+            cat .github/codex/prompts/release-notes.md
+            printf '\n--- VERSION ---\n%s\n\n--- COMMITS SINCE PREVIOUS TAG ---\n' "$TAG"
+            PREV=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
+            if [ -n "$PREV" ]; then
+              git log --oneline "${PREV}..${TAG}"
+            else
+              git log --oneline "${TAG}"
+            fi
+          } > /tmp/release-prompt.txt
+
+      - name: Run Codex
+        id: codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: /tmp/release-prompt.txt
+          sandbox: read-only
+          safety-strategy: drop-sudo
+          effort: medium
+
+      - name: Publish Codex notes to the GitHub Release
+        if: steps.codex.outputs.final-message != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          NOTES: ${{ steps.codex.outputs.final-message }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" --notes "$NOTES"
+          else
+            gh release create "$TAG" --title "dotenv-doctor $TAG" --notes "$NOTES"
+          fi

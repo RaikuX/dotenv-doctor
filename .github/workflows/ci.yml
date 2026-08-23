@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+
+  env-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci && npm run build
+      - name: Dogfood the CLI end-to-end
+        run: |
+          node dist/cli.js --version
+          # clean pair must pass (exit 0)
+          printf 'PORT=3000\nNODE_ENV=production\n' > /tmp/clean.env
+          printf 'PORT=\nNODE_ENV=\n' > /tmp/clean.env.example
+          node dist/cli.js --env /tmp/clean.env --example /tmp/clean.env.example --no-color
+          # dirty pair must fail (exit 1)
+          printf 'PORT=abc\nSECRET=changeme\n' > /tmp/dirty.env
+          printf 'PORT=\nSECRET=\nMISSING_KEY=\n' > /tmp/dirty.env.example
+          if node dist/cli.js --env /tmp/dirty.env --example /tmp/dirty.env.example --no-color; then
+            echo "expected nonzero exit for dirty env"; exit 1
+          fi
+          # bad flag must exit 2
+          if node dist/cli.js --disable not-a-rule; then
+            echo "expected exit 2 for unknown rule"; exit 1
+          fi
