@@ -12,5 +12,60 @@ jobs:
   triage:
     runs-on: ubuntu-latest
     steps:
-      - name: Probe
-        run: echo "triage workflow parsed and ran"
+      - name: Check API key
+        id: keycheck
+        run: |
+          if [ -n "$API_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      - uses: actions/checkout@v4
+        if: steps.keycheck.outputs.present == 'true'
+        with:
+          persist-credentials: false
+
+      - name: Assemble prompt
+        if: steps.keycheck.outputs.present == 'true'
+        env:
+          TITLE: ${{ github.event.issue.title }}
+          BODY: ${{ github.event.issue.body }}
+          NUMBER: ${{ github.event.issue.number }}
+        run: |
+          {
+            cat .github/codex/prompts/issue-triage.md
+            printf '\n--- ISSUE TITLE ---\n%s\n\n--- ISSUE BODY ---\n%s\n' "$TITLE" "$BODY"
+          } > /tmp/triage-prompt.txt
+          echo "NUMBER=$NUMBER" >> "$GITHUB_ENV"
+
+      - name: Run Codex triage
+        if: steps.keycheck.outputs.present == 'true'
+        id: codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: /tmp/triage-prompt.txt
+          sandbox: read-only
+          safety-strategy: drop-sudo
+          effort: low
+
+      - name: Apply label and comment
+        if: steps.keycheck.outputs.present == 'true' && steps.codex.outputs.final-message != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTPUT: ${{ steps.codex.outputs.final-message }}
+        run: |
+          LABEL=$(printf '%s' "$OUTPUT" | head -n 1 | tr -d '[:space:]')
+          case "$LABEL" in
+            bug|enhancement|documentation|question)
+              gh issue label "$NUMBER" --add "$LABEL"
+              ;;
+            *)
+              echo "Codex returned unrecognized label '$LABEL'; skipping label."
+              ;;
+          esac
+          COMMENT=$(printf '%s' "$OUTPUT" | tail -n +2)
+          gh issue comment "$NUMBER" --body "$COMMENT"

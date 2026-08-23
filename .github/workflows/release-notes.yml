@@ -12,14 +12,25 @@ jobs:
   release-notes:
     runs-on: ubuntu-latest
     steps:
+      - name: Check API key
+        id: keycheck
+        run: |
+          if [ -n "$API_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
       - uses: actions/checkout@v4
+        if: steps.keycheck.outputs.present == 'true'
         with:
           fetch-depth: 0
           persist-credentials: false
-        if: ${{ secrets.OPENAI_API_KEY != '' }}
 
       - name: Assemble prompt
-        if: ${{ secrets.OPENAI_API_KEY != '' }}
+        if: steps.keycheck.outputs.present == 'true'
         env:
           TAG: ${{ github.ref_name }}
         run: |
@@ -35,7 +46,7 @@ jobs:
           } > /tmp/release-prompt.txt
 
       - name: Run Codex
-        if: ${{ secrets.OPENAI_API_KEY != '' }}
+        if: steps.keycheck.outputs.present == 'true'
         id: codex
         uses: openai/codex-action@v1
         with:
@@ -46,7 +57,7 @@ jobs:
           effort: medium
 
       - name: Publish Codex notes to the GitHub Release
-        if: ${{ secrets.OPENAI_API_KEY != '' && steps.codex.outputs.final-message != '' }}
+        if: steps.keycheck.outputs.present == 'true' && steps.codex.outputs.final-message != ''
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
