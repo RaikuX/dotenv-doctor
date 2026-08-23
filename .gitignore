@@ -10,3 +10,4 @@ pub-out.txt
 pub-err.txt
 APPLYING.local.md
 PROJECT_HANDOFF.md
+p.env
