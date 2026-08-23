@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import yaml from "js-yaml";
+import { load as loadYaml } from "js-yaml";
 
 const files = readdirSync(".github/workflows")
   .map((f) => join(".github/workflows", f))
@@ -9,7 +9,7 @@ const files = readdirSync(".github/workflows")
 let failed = false;
 for (const f of files) {
   try {
-    yaml.load(readFileSync(f, "utf8"));
+    loadYaml(readFileSync(f, "utf8"));
     console.log(`OK    ${f}`);
   } catch (e) {
     failed = true;
