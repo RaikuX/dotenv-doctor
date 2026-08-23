@@ -43,7 +43,7 @@ runs:
           ARGS+=(--disable "$DD_DISABLE")
         fi
         if [ "$DD_VERSION" = "latest" ]; then
-          npx --yes dotenv-doctor "${ARGS[@]}"
+          npx --yes @raikux/dotenv-doctor "${ARGS[@]}"
         else
-          npx --yes "dotenv-doctor@$DD_VERSION" "${ARGS[@]}"
+          npx --yes "@raikux/dotenv-doctor@$DD_VERSION" "${ARGS[@]}"
         fi

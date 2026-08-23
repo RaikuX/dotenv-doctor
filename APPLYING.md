@@ -34,7 +34,7 @@ The program verifies usage, ecosystem importance, active maintenance, and your r
    ```
 3. **Publish to npm** (`npm publish`) — monthly download numbers matter on the form
 4. **Enable the Codex workflows**: add `OPENAI_API_KEY` as a repo secret so the two Codex workflows actually run on real PRs/issues
-5. **Use it genuinely**: run `npx dotenv-doctor` in your own other projects, fix issues, answer bug reports, merge community PRs. A few weeks of real activity history helps a lot.
+5. **Use it genuinely**: run `npx @raikux/dotenv-doctor` in your own other projects, fix issues, answer bug reports, merge community PRs. A few weeks of real activity history helps a lot.
 6. **Grow adoption legitimately**: post on relevant communities (r/node, Hacker News Show HN, Discord servers), write one short blog post ("I audited my .env hygiene and you should too")
 
 ## On the form

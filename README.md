@@ -3,13 +3,13 @@
 > Audit your `.env` hygiene before production audits you.
 
 [![CI](https://github.com/RaikuX/dotenv-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/RaikuX/dotenv-doctor/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/dotenv-doctor)](https://www.npmjs.com/package/dotenv-doctor)
+[![npm](https://img.shields.io/npm/v/@raikux/dotenv-doctor)](https://www.npmjs.com/package/@raikux/dotenv-doctor)
 [![license](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 
 **dotenv-doctor** is a zero-dependency CLI that catches the environment-variable mistakes that cause 2am outages: keys declared but never set, placeholder secrets shipped to prod, real credentials accidentally committed, and values whose types don't match what your code expects.
 
 ```console
-$ npx dotenv-doctor
+$ npx @raikux/dotenv-doctor
 
 error  [missing]    "API_KEY" is declared in .env.example but missing from .env
 error  [secret]     "AWS_ACCESS_KEY_ID" matches a real AWS access key format — rotate immediately
@@ -34,9 +34,9 @@ dotenv-doctor turns all four into fast, deterministic CI checks — no config re
 ## Install
 
 ```bash
-npm install -g dotenv-doctor
+npm install -g @raikux/dotenv-doctor
 # or run once-off
-npx dotenv-doctor
+npx @raikux/dotenv-doctor
 ```
 
 Requires Node.js >= 18.
@@ -93,7 +93,7 @@ jobs:
 ```yaml
 - uses: actions/setup-node@v4
   with: { node-version: 22 }
-- run: npx dotenv-doctor --no-color
+- run: npx @raikux/dotenv-doctor --no-color
 ```
 
 ## Maintained with Codex
