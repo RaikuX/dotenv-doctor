@@ -44,7 +44,9 @@ export function applyFix(
   envPath: string,
   examplePath: string,
 ): FixResult | { error: string } {
-  if (resolve(envPath) === resolve(examplePath)) {
+  const norm = (p: string) =>
+    process.platform === "win32" ? resolve(p).toLowerCase() : resolve(p);
+  if (norm(envPath) === norm(examplePath)) {
     return { error: "env and example point to the same file" };
   }
 

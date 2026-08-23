@@ -17,6 +17,8 @@ function isPortKey(key: string): boolean {
   return /(^|_)PORT(_|$)/i.test(key);
 }
 function isUrlKey(key: string): boolean {
+  // `_URL_DIRECT` style flags (e.g. Prisma's DATABASE_URL_DIRECT) are booleans
+  if (/(_DIRECT|_FLAG)$/i.test(key)) return false;
   return /(_URL|_URI|_ENDPOINT|_HOST_URL|URL_|URI_)/i.test(key);
 }
 function isEmailKey(key: string): boolean {

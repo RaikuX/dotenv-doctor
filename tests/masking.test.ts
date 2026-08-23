@@ -47,3 +47,13 @@ test("placeholder rule detects mustache-style templates", () => {
   const r = auditFiles(envPath, exPath);
   assert.ok(r.issues.some((i) => i.rule === "placeholder" && i.key === "DB_HOST"));
 });
+
+test("boolean flags like Prisma DATABASE_URL_DIRECT are not URL-checked", () => {
+  const { envPath, exPath } = setup("DATABASE_URL_DIRECT=true\n", "");
+  const r = auditFiles(envPath, exPath);
+  assert.equal(
+    r.issues.filter((i) => i.rule === "type" && i.key === "DATABASE_URL_DIRECT").length,
+    0,
+    "boolean _DIRECT flag must not be treated as a URL",
+  );
+});
