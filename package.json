@@ -41,5 +41,10 @@
   "bugs": {
     "url": "https://github.com/RaikuX/dotenv-doctor/issues"
   },
-  "homepage": "https://github.com/RaikuX/dotenv-doctor#readme"
+  "homepage": "https://github.com/RaikuX/dotenv-doctor#readme",
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
 }
