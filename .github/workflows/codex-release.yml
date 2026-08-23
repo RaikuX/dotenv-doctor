@@ -5,11 +5,15 @@ on:
     tags:
       - "v*"
 
+env:
+  HAS_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
+
 permissions:
   contents: write
 
 jobs:
   release-notes:
+    if: env.HAS_API_KEY == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
