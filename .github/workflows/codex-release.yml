@@ -10,17 +10,16 @@ permissions:
 
 jobs:
   release-notes:
-    if: env.HAS_API_KEY == 'true'
     runs-on: ubuntu-latest
-    env:
-      HAS_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
+        if: ${{ secrets.OPENAI_API_KEY != '' }}
 
       - name: Assemble prompt
+        if: ${{ secrets.OPENAI_API_KEY != '' }}
         env:
           TAG: ${{ github.ref_name }}
         run: |
@@ -36,6 +35,7 @@ jobs:
           } > /tmp/release-prompt.txt
 
       - name: Run Codex
+        if: ${{ secrets.OPENAI_API_KEY != '' }}
         id: codex
         uses: openai/codex-action@v1
         with:
@@ -46,7 +46,7 @@ jobs:
           effort: medium
 
       - name: Publish Codex notes to the GitHub Release
-        if: steps.codex.outputs.final-message != ''
+        if: ${{ secrets.OPENAI_API_KEY != '' && steps.codex.outputs.final-message != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}

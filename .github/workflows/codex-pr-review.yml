@@ -10,17 +10,16 @@ permissions:
 
 jobs:
   review:
-    if: env.HAS_API_KEY == 'true'
     runs-on: ubuntu-latest
-    env:
-      HAS_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
+        if: ${{ secrets.OPENAI_API_KEY != '' }}
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Run Codex review
+        if: ${{ secrets.OPENAI_API_KEY != '' }}
         id: codex
         uses: openai/codex-action@v1
         with:
@@ -31,7 +30,7 @@ jobs:
           effort: medium
 
       - name: Post review comment
-        if: steps.codex.outputs.final-message != ''
+        if: ${{ secrets.OPENAI_API_KEY != '' && steps.codex.outputs.final-message != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}

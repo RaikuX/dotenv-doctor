@@ -10,16 +10,15 @@ permissions:
 
 jobs:
   triage:
-    if: env.HAS_API_KEY == 'true'
     runs-on: ubuntu-latest
-    env:
-      HAS_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
+        if: ${{ secrets.OPENAI_API_KEY != '' }}
         with:
           persist-credentials: false
 
       - name: Assemble prompt
+        if: ${{ secrets.OPENAI_API_KEY != '' }}
         env:
           TITLE: ${{ github.event.issue.title }}
           BODY: ${{ github.event.issue.body }}
@@ -32,6 +31,7 @@ jobs:
           echo "NUMBER=$NUMBER" >> "$GITHUB_ENV"
 
       - name: Run Codex triage
+        if: ${{ secrets.OPENAI_API_KEY != '' }}
         id: codex
         uses: openai/codex-action@v1
         with:
@@ -42,7 +42,7 @@ jobs:
           effort: low
 
       - name: Apply label and comment
-        if: steps.codex.outputs.final-message != ''
+        if: ${{ secrets.OPENAI_API_KEY != '' && steps.codex.outputs.final-message != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
           OUTPUT: ${{ steps.codex.outputs.final-message }}
