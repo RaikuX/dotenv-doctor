@@ -45,6 +45,8 @@ Requires Node.js >= 18.
 
 ```bash
 dotenv-doctor                          # audit .env against .env.example
+dotenv-doctor --fix                    # sync missing/undocumented keys safely
+dotenv-doctor --format json            # machine-readable output for CI
 dotenv-doctor --env .env.production    # audit a specific env file
 dotenv-doctor --disable drift,type     # skip rules you don't want
 ```
@@ -68,6 +70,8 @@ Exit codes make it CI-friendly:
 | `type` | warn | Port/URL/email/boolean/NODE_ENV keys with wrong-shaped values |
 | `duplicate` | warn | The same key defined multiple times (last one silently wins) |
 | `secret` | error/warn | Real credential formats (AWS, Stripe, GitHub, OpenAI incl. legacy, Anthropic, SendGrid, npm, PyPI, Slack, Google, JWT, private keys) plus generic high-entropy strings in secret-named keys |
+
+> Security rules run even if `.env.example` is missing or unreadable — a missing example never hides committed credentials.
 
 Secret detection never prints the value — only masked previews (`AK********AMPLE`).
 
@@ -109,10 +113,11 @@ To enable the Codex workflows, add your `OPENAI_API_KEY` as a repository secret.
 
 ## Roadmap
 
-- [ ] `--fix` mode: sync missing keys into `.env` / prune stale ones from `.env.example`
+- [x] `--fix` mode: sync missing keys into `.env` / document drift in `.env.example`
+- [x] JSON output for CI/machine consumption
 - [ ] Config file support (`.dotenv-doctor.json`) for custom type annotations
 - [ ] Git history scanning (`--history`) for previously committed secrets
-- [ ] JSON/SARIF output for GitHub Security tab integration
+- [ ] SARIF output for GitHub Security tab integration
 
 Contributions welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md). Coding agents: read [AGENTS.md](./AGENTS.md) first.
 

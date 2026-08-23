@@ -13,10 +13,17 @@ src/
   parser.ts        .env syntax parsing -> EnvVar[] (+ syntax errors)
   rules/           one file per rule; each exports a Rule object
   types.ts         Issue / Rule / AuditContext contracts
-  audit.ts         loads files, runs enabled rules, returns AuditResult
-  report.ts        terminal rendering (ANSI color optional)
+  audit.ts         loads files, runs enabled rules, returns AuditResult;
+                   env-only rules (all except missing/drift) run even when
+                   .env.example is unreadable — never hide committed secrets
+  fixer.ts         --fix engine: two-way safe sync, append-only,
+                   refuses files with syntax errors
+  report.ts        terminal rendering (ANSI color optional) + renderJson
   cli.ts           argument parsing, exit codes, usage text
   index.ts         public library API
+scripts/
+  test.mjs             Node18-compatible test runner (no CLI glob dependency)
+  check-workflows.mjs  js-yaml validation of all workflow/action YAML
 tests/             node:test suites, compiled by tsconfig.test.json
 ```
 

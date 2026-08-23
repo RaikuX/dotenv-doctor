@@ -3,6 +3,29 @@
 All notable changes to dotenv-doctor are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+## [0.2.0] - 2026-08-23
+
+### Added
+
+- `--fix`: safe two-way sync — appends example-declared keys missing from `.env`, documents undocumented `.env` keys in `.env.example`; never removes anything, refuses files with syntax errors, preserves CRLF style, idempotent
+- `--format json`: stable machine-readable output for CI pipelines (includes package version)
+- Actionable hint after findings ("run with `--fix` to add N missing keys…")
+- Library API now exports `applyFix`, `renderJson`
+- Security rules now audit the env file even when `.env.example` is missing or unreadable — a missing example no longer hides committed credentials
+- `exports` field in package.json for modern Node/bundler resolution
+
+### Changed
+
+- Test runner rewritten to support Node 18/20 (no CLI glob dependency)
+- CI dogfood job now asserts real exit-code behavior instead of only `--help`
+
+### Fixed
+
+- GitHub workflows no longer use `secrets` inside step-level `if:` (rejected by GitHub's parser, invalidating the whole file)
+- `--fix` no longer writes a leading blank line when the target file is empty
+
 ## [0.1.0] - 2026-08-23
 
 ### Added

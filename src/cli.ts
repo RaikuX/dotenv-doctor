@@ -2,7 +2,8 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { auditFiles, RULE_NAMES } from "./audit.js";
-import { renderReport } from "./report.js";
+import { renderReport, renderJson } from "./report.js";
+import { applyFix } from "./fixer.js";
 
 const VERSION = (() => {
   try {
@@ -18,6 +19,8 @@ interface Args {
   example: string;
   disable: string[];
   noColor: boolean;
+  format: "text" | "json";
+  fix: boolean;
   version: boolean;
   help: boolean;
 }
@@ -28,6 +31,8 @@ function parseArgs(argv: string[]): { args?: Args; error?: string } {
     example: ".env.example",
     disable: [],
     noColor: !process.stdout.isTTY || process.env.NO_COLOR != null,
+    format: "text",
+    fix: false,
     version: false,
     help: false,
   };
@@ -50,6 +55,17 @@ function parseArgs(argv: string[]): { args?: Args; error?: string } {
           );
         break;
       }
+      case "--format": {
+        const val = argv[++i];
+        if (val !== "text" && val !== "json") {
+          return { error: `--format must be "text" or "json"` };
+        }
+        args.format = val;
+        break;
+      }
+      case "--fix":
+        args.fix = true;
+        break;
       case "--no-color":
         args.noColor = true;
         break;
@@ -80,6 +96,9 @@ Usage:
 Options:
   --env <path>        path to your env file          (default: .env)
   --example <path>    path to the example/template   (default: .env.example)
+  --fix               sync both files safely: append missing keys to .env,
+                      document undocumented keys in .env.example (never removes)
+  --format <text|json> output style; json is stable for CI/machines
   --disable <rules>   comma-separated rules to skip  (e.g. drift,type)
   --no-color          disable colored output (also honors NO_COLOR env var)
   -V, --version       print version
@@ -134,8 +153,46 @@ if (unknownRules.length > 0) {
 }
 
 try {
+  if (args.fix) {
+    const fix = applyFix(args.env, args.example);
+    if ("error" in fix) {
+      console.error(`dotenv-doctor: ${fix.error}`);
+      process.exit(2);
+    }
+    if (args.format === "json") {
+      console.log(JSON.stringify(fix, null, 2));
+    } else {
+      for (const key of fix.addedToEnv) {
+        console.log(`added   ${key} to ${args.env}`);
+      }
+      for (const key of fix.documentedInExample) {
+        console.log(`documented ${key} in ${args.example}`);
+      }
+      if (fix.createdExample) {
+        console.log(`created ${args.example} from scratch`);
+      }
+      if (fix.addedToEnv.length === 0 && fix.documentedInExample.length === 0) {
+        console.log("nothing to fix — files already in sync");
+      }
+    }
+    process.exit(0);
+  }
+
   const result = auditFiles(args.env, args.example, { disabled: args.disable });
-  console.log(renderReport(result, !args.noColor));
+
+  if (args.format === "json") {
+    console.log(renderJson(result, VERSION));
+  } else {
+    console.log(renderReport(result, !args.noColor));
+    const missingCount = result.issues.filter((i) => i.rule === "missing").length;
+    const driftCount = result.issues.filter((i) => i.rule === "drift").length;
+    if (missingCount > 0 || driftCount > 0) {
+      console.error(
+        `\nhint: run \`dotenv-doctor --fix\` to add ${missingCount} missing key(s) and document ${driftCount} undocumented one(s)`,
+      );
+    }
+  }
+
   if (result.parseErrors.length > 0 && result.issues.length === 0) process.exit(1);
   process.exit(result.issues.length > 0 ? 1 : 0);
 } catch (err) {

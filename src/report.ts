@@ -7,6 +7,28 @@ const GREEN = "\x1b[32m";
 const DIM = "\x1b[2m";
 const BOLD = "\x1b[1m";
 
+export function renderJson(result: AuditResult, version?: string): string {
+  const errors = result.issues.filter((i) => i.severity === "error").length;
+  const warnings = result.issues.filter((i) => i.severity === "warn").length;
+  return JSON.stringify(
+    {
+      ...(version != null ? { version } : {}),
+      varCount: result.varCount,
+      parseErrors: result.parseErrors,
+      summary: { errors, warnings, total: result.issues.length },
+      issues: result.issues.map((i) => ({
+        rule: i.rule,
+        severity: i.severity,
+        key: i.key ?? null,
+        line: i.line ?? null,
+        message: i.message,
+      })),
+    },
+    null,
+    2,
+  );
+}
+
 export function renderReport(result: AuditResult, useColor = true): string {
   const c = (code: string) => (useColor ? code : "");
   const lines: string[] = [];

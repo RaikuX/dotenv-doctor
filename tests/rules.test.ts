@@ -182,3 +182,25 @@ test("missing example file produces parse error", () => {
   assert.equal(r.parseErrors.length, 1);
   assert.match(r.parseErrors[0], /Cannot read/);
 });
+
+test("env-only security rules still run when .env.example is missing", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ddd-"));
+  const envPath = join(dir, ".env");
+  writeFileSync(
+    envPath,
+    "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\nPORT=abc\nSECRET=changeme\n",
+  );
+  const r = auditFiles(envPath, join(dir, "nope.example"));
+
+  const rules = new Set(r.issues.map((i) => i.rule));
+  assert.ok(rules.has("secret"), "committed AWS key must be caught");
+  assert.ok(rules.has("type"), "type rule must run without example");
+  assert.ok(rules.has("placeholder"), "placeholder rule must run without example");
+  assert.equal(rules.has("missing"), false, "missing needs the example file");
+  assert.equal(rules.has("drift"), false, "drift needs the example file");
+
+  // and no secret value may ever leak into messages
+  for (const i of r.issues) {
+    assert.ok(!i.message.includes("AKIAIOSFODNN7EXAMPLE"));
+  }
+});

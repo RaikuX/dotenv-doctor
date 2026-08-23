@@ -11,6 +11,9 @@ import {
 } from "./rules/index.js";
 import type { Issue, Rule } from "./types.js";
 
+/** rules that need both files */
+const EXAMPLE_DEPENDENT = new Set([missingRule.name, driftRule.name]);
+
 const ALL_RULES: Rule[] = [
   missingRule,
   driftRule,
@@ -40,10 +43,8 @@ export function auditFiles(
   options: AuditOptions = {},
 ): AuditResult {
   const disabled = new Set(options.disabled ?? []);
-  const rules = ALL_RULES.filter((r) => !disabled.has(r.name));
 
   let envParsed: ParseResult;
-  let exParsed: ParseResult;
   try {
     envParsed = parseEnvFile(readFileSync(envPath, "utf8"));
   } catch {
@@ -54,30 +55,34 @@ export function auditFiles(
     };
   }
 
+  let exParsed: ParseResult | null;
+  const parseErrors: string[] = [...envParsed.errors];
   try {
     exParsed = parseEnvFile(readFileSync(examplePath, "utf8"));
+    parseErrors.push(...exParsed.errors);
   } catch {
-    return {
-      issues: [],
-      varCount: envParsed.vars.length,
-      parseErrors: [
-        `Cannot read ${examplePath} — every project should ship one as documentation`,
-      ],
-    };
+    exParsed = null;
+    parseErrors.push(
+      `Cannot read ${examplePath} — every project should ship one as documentation`,
+    );
   }
 
   const ctx = {
     envVars: indexVars(envParsed.vars),
     rawVars: envParsed.vars.map((v) => ({ key: v.key, value: v.value, line: v.line })),
-    exampleKeys: new Set(exParsed.vars.map((v) => v.key)),
+    exampleKeys: new Set(exParsed ? exParsed.vars.map((v) => v.key) : []),
   };
 
+  // Security and hygiene rules run against the env alone, so a missing
+  // .env.example never hides committed credentials.
   const issues: Issue[] = [];
-  for (const rule of rules) {
+  for (const rule of ALL_RULES) {
+    if (disabled.has(rule.name)) continue;
+    if (exParsed === null && EXAMPLE_DEPENDENT.has(rule.name)) continue;
     issues.push(...rule.run(ctx));
   }
 
-  return { issues, varCount: envParsed.vars.length, parseErrors: [...envParsed.errors, ...exParsed.errors] };
+  return { issues, varCount: envParsed.vars.length, parseErrors };
 }
 
 function indexVars(vars: EnvVar[]): Map<string, { value: string; line: number }> {
