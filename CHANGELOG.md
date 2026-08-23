@@ -25,6 +25,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 - GitHub workflows no longer use `secrets` inside step-level `if:` (rejected by GitHub's parser, invalidating the whole file)
 - `--fix` no longer writes a leading blank line when the target file is empty
+- Values under secret-named keys (`*KEY`, `*TOKEN`, `*SECRET`, `*PASSWORD`, `*CREDENTIAL`, `*AUTH`, `*WEBHOOK`, …) are now fully masked by every rule — previously the type rule could reveal up to 8 characters
+- Placeholder rule now also detects `{{template}}` values
 
 ## [0.1.0] - 2026-08-23
 

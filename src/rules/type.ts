@@ -1,3 +1,4 @@
+import { maskFor } from "../mask.js";
 import type { Issue, Rule } from "../types.js";
 
 const URL_RE = /^[a-z][a-z0-9+.-]*:\/\/[^\s"']+$/;
@@ -33,16 +34,17 @@ export const typeRule: Rule = {
       const value = meta.value.trim();
       if (value === "") continue;
 
+      const shown = (v: string) => maskFor(key, v, (s) => (s.length <= 8 ? s : s.slice(0, 8) + "…"));
       if (isPortKey(key) && !/^\d{1,5}$/.test(value)) {
-        issues.push(issue(key, meta.line, `"${key}" looks like a port but "${mask(value)}" is not numeric`));
+        issues.push(issue(key, meta.line, `"${key}" looks like a port but "${shown(value)}" is not numeric`));
       } else if (isUrlKey(key) && !URL_RE.test(value)) {
-        issues.push(issue(key, meta.line, `"${key}" should be a valid URL (scheme://host) but got "${mask(value)}"`));
+        issues.push(issue(key, meta.line, `"${key}" should be a valid URL (scheme://host) but got "${shown(value)}"`));
       } else if (isEmailKey(key) && !looksLikeEmail(value)) {
-        issues.push(issue(key, meta.line, `"${key}" should be an email address but got "${mask(value)}"`));
+        issues.push(issue(key, meta.line, `"${key}" should be an email address but got "${shown(value)}"`));
       } else if (/^NODE_ENV$/i.test(key) && !NODE_ENV_OK.has(value.toLowerCase())) {
-        issues.push(issue(key, meta.line, `"${key}" should be development, production or test but got "${mask(value)}"`));
+        issues.push(issue(key, meta.line, `"${key}" should be development, production or test but got "${shown(value)}"`));
       } else if (isBoolKey(key) && !BOOL_OK.has(value.toLowerCase())) {
-        issues.push(issue(key, meta.line, `"${key}" should be a boolean-like value (true/false/1/0/yes/no) but got "${mask(value)}"`));
+        issues.push(issue(key, meta.line, `"${key}" should be a boolean-like value (true/false/1/0/yes/no) but got "${shown(value)}"`));
       }
     }
     return issues;
@@ -53,7 +55,3 @@ function issue(key: string, line: number, message: string): Issue {
   return { rule: "type", severity: "warn", key, line, message };
 }
 
-function mask(value: string): string {
-  if (value.length <= 8) return value;
-  return value.slice(0, 8) + "…";
-}

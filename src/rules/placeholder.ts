@@ -1,3 +1,4 @@
+import { maskFor } from "../mask.js";
 import type { Issue, Rule } from "../types.js";
 
 const PLACEHOLDER_PATTERNS = [
@@ -6,6 +7,7 @@ const PLACEHOLDER_PATTERNS = [
   /^<.*>$/,
   /^\[.*\]$/,
   /^\$\{.*\}$/,
+  /^\{\{.*\}\}$/,
   /^xxx+$/i,
   /^todo$/i,
   /^fixme$/i,
@@ -22,21 +24,19 @@ export const placeholderRule: Rule = {
     for (const [key, meta] of envVars) {
       if (meta.value.trim() === "") continue;
       if (PLACEHOLDER_PATTERNS.some((p) => p.test(meta.value.trim()))) {
+        const shown = maskFor(key, meta.value, (s) => {
+          if (s.length <= 4) return "*".repeat(s.length);
+          return s.slice(0, 2) + "*".repeat(Math.min(Math.max(s.length - 4, 3), 12)) + s.slice(-2);
+        });
         issues.push({
           rule: this.name,
           severity: "warn",
           key,
           line: meta.line,
-          message: `"${key}" still contains a placeholder value ("${mask(meta.value)}")`,
+          message: `"${key}" still contains a placeholder value ("${shown}")`,
         });
       }
     }
     return issues;
   },
 };
-
-function mask(value: string): string {
-  const v = value.trim();
-  if (v.length <= 4) return "*".repeat(v.length);
-  return v.slice(0, 2) + "*".repeat(Math.min(Math.max(v.length - 4, 3), 12)) + v.slice(-2);
-}

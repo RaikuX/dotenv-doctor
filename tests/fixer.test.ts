@@ -51,11 +51,18 @@ test("fix creates the example file when it does not exist", () => {
   assert.match(ex, /^Y=\n/m);
 });
 
-test("fix refuses files with syntax errors", () => {
-  const { envPath, exPath } = setup("BAD LINE\n", "");
-  const r = applyFix(envPath, exPath);
+test("fix refuses when both paths point to the same file", () => {
+  const { envPath } = setup("A=1\n", null);
+  const r = applyFix(envPath, envPath);
   assert.ok("error" in r);
-  assert.match((r as { error: string }).error, /refusing to fix/);
+  assert.match((r as { error: string }).error, /same file/);
+});
+
+test("fix leaves no temp files behind", () => {
+  const { envPath, exPath } = setup("A=1\n", "B=\n");
+  applyFix(envPath, exPath);
+  assert.equal(existsSync(envPath + ".tmp"), false);
+  assert.equal(existsSync(exPath + ".tmp"), false);
 });
 
 test("fix preserves CRLF style of the target file", () => {

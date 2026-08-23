@@ -1,4 +1,5 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, renameSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { parseEnvFile } from "./parser.js";
 
 export interface FixResult {
@@ -14,6 +15,13 @@ function detectEol(content: string): string {
   return content.includes("\r\n") ? "\r\n" : "\n";
 }
 
+/** atomic-ish write: content lands via rename so a crash can't truncate the target */
+function safeWrite(path: string, content: string): void {
+  const tmp = `${path}.tmp`;
+  writeFileSync(tmp, content, "utf8");
+  renameSync(tmp, path);
+}
+
 function appendKeys(
   path: string,
   original: string,
@@ -23,7 +31,7 @@ function appendKeys(
   let base = original;
   if (base !== "" && !base.endsWith("\n")) base += eol;
   const addition = keys.map((k) => `${k}=`).join(eol) + eol;
-  writeFileSync(path, base + addition, "utf8");
+  safeWrite(path, base + addition);
 }
 
 /**
@@ -36,6 +44,10 @@ export function applyFix(
   envPath: string,
   examplePath: string,
 ): FixResult | { error: string } {
+  if (resolve(envPath) === resolve(examplePath)) {
+    return { error: "env and example point to the same file" };
+  }
+
   let envContent: string;
   let exContent: string;
   let exampleExists = true;
