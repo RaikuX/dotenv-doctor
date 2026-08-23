@@ -1,8 +1,0 @@
-
-> dotenv-doctor@0.1.0 prepublishOnly
-> npm run build
-
-
-> dotenv-doctor@0.1.0 build
-> tsc --emitDeclarationOnly && node build.mjs
-
