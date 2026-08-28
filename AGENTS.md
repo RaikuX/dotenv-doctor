@@ -12,13 +12,15 @@ dotenv-doctor is a **zero-runtime-dependency** TypeScript CLI that audits `.env`
 src/
   parser.ts        .env syntax parsing -> EnvVar[] (+ syntax errors)
   rules/           one file per rule; each exports a Rule object
-  types.ts         Issue / Rule / AuditContext contracts
+  types.ts         Issue / Rule / AuditContext / TypeKind contracts
   audit.ts         loads files, runs enabled rules, returns AuditResult;
                    env-only rules (all except missing/drift) run even when
                    .env.example is unreadable — never hide committed secrets
+  config.ts        .dotenv-doctor.json + package.json#dotenv-doctor loader
+  history.ts       --history git log scan of env files for committed secrets
   fixer.ts         --fix engine: two-way safe sync, append-only,
                    refuses files with syntax errors
-  report.ts        terminal rendering (ANSI color optional) + renderJson
+  report.ts        terminal rendering + renderJson + renderSarif
   cli.ts           argument parsing, exit codes, usage text
   index.ts         public library API
 scripts/

@@ -1,5 +1,5 @@
 import { maskFor } from "../mask.js";
-import type { Issue, Rule } from "../types.js";
+import type { Issue, Rule, TypeKind } from "../types.js";
 
 const URL_RE = /^[a-z][a-z0-9+.-]*:\/\/[^\s"']+$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -28,26 +28,58 @@ function isBoolKey(key: string): boolean {
   return /(_ENABLED?|_DEBUG|_VERBOSE|_DRY_RUN|^DEBUG$)/i.test(key);
 }
 
+function inferredKind(key: string): TypeKind | "node_env" | undefined {
+  if (isPortKey(key)) return "port";
+  if (isUrlKey(key)) return "url";
+  if (isEmailKey(key)) return "email";
+  if (/^NODE_ENV$/i.test(key)) return "node_env";
+  if (isBoolKey(key)) return "boolean";
+  return undefined;
+}
+
+function check(
+  key: string,
+  value: string,
+  line: number,
+  kind: TypeKind | "node_env",
+): Issue | undefined {
+  const shown = (v: string) => maskFor(key, v, (s) => (s.length <= 8 ? s : s.slice(0, 8) + "…"));
+  if (kind === "string") return undefined;
+  if (kind === "port" && !/^\d{1,5}$/.test(value)) {
+    return issue(key, line, `"${key}" looks like a port but "${shown(value)}" is not numeric`);
+  }
+  if (kind === "url" && !URL_RE.test(value)) {
+    return issue(key, line, `"${key}" should be a valid URL (scheme://host) but got "${shown(value)}"`);
+  }
+  if (kind === "email" && !looksLikeEmail(value)) {
+    return issue(key, line, `"${key}" should be an email address but got "${shown(value)}"`);
+  }
+  if (kind === "node_env" && !NODE_ENV_OK.has(value.toLowerCase())) {
+    return issue(key, line, `"${key}" should be development, production or test but got "${shown(value)}"`);
+  }
+  if (kind === "boolean" && !BOOL_OK.has(value.toLowerCase())) {
+    return issue(
+      key,
+      line,
+      `"${key}" should be a boolean-like value (true/false/1/0/yes/no) but got "${shown(value)}"`,
+    );
+  }
+  return undefined;
+}
+
 export const typeRule: Rule = {
   name: "type",
-  run({ envVars }) {
+  run({ envVars, types }) {
     const issues: Issue[] = [];
     for (const [key, meta] of envVars) {
       const value = meta.value.trim();
       if (value === "") continue;
 
-      const shown = (v: string) => maskFor(key, v, (s) => (s.length <= 8 ? s : s.slice(0, 8) + "…"));
-      if (isPortKey(key) && !/^\d{1,5}$/.test(value)) {
-        issues.push(issue(key, meta.line, `"${key}" looks like a port but "${shown(value)}" is not numeric`));
-      } else if (isUrlKey(key) && !URL_RE.test(value)) {
-        issues.push(issue(key, meta.line, `"${key}" should be a valid URL (scheme://host) but got "${shown(value)}"`));
-      } else if (isEmailKey(key) && !looksLikeEmail(value)) {
-        issues.push(issue(key, meta.line, `"${key}" should be an email address but got "${shown(value)}"`));
-      } else if (/^NODE_ENV$/i.test(key) && !NODE_ENV_OK.has(value.toLowerCase())) {
-        issues.push(issue(key, meta.line, `"${key}" should be development, production or test but got "${shown(value)}"`));
-      } else if (isBoolKey(key) && !BOOL_OK.has(value.toLowerCase())) {
-        issues.push(issue(key, meta.line, `"${key}" should be a boolean-like value (true/false/1/0/yes/no) but got "${shown(value)}"`));
-      }
+      const annotated = types[key];
+      const kind = annotated ?? inferredKind(key);
+      if (!kind) continue;
+      const found = check(key, value, meta.line, kind);
+      if (found) issues.push(found);
     }
     return issues;
   },
@@ -56,4 +88,3 @@ export const typeRule: Rule = {
 function issue(key: string, line: number, message: string): Issue {
   return { rule: "type", severity: "warn", key, line, message };
 }
-

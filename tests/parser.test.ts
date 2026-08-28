@@ -58,3 +58,11 @@ test("escaped quotes inside double-quoted values are preserved", () => {
   const r = parseEnvFile('QUOTE="he said \\"hi\\""\n');
   assert.equal(r.vars[0].value, 'he said "hi"');
 });
+
+test("malformed-line errors do not echo the raw line (secrets stay masked)", () => {
+  const r = parseEnvFile("AKIAIOSFODNN7EXAMPLE leaked\nJUST_A_KEY\nOK=1\n");
+  assert.equal(r.errors.length, 2);
+  const blob = r.errors.join("\n");
+  assert.ok(!blob.includes("AKIAIOSFODNN7EXAMPLE"));
+  assert.ok(!blob.includes("JUST_A_KEY"));
+});

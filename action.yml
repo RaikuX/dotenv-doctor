@@ -19,10 +19,31 @@ inputs:
     description: "Comma-separated rule names to skip (missing,drift,empty,placeholder,type,duplicate,secret)"
     required: false
     default: ""
+  format:
+    description: "Output format: text, json, or sarif"
+    required: false
+    default: "text"
+  history:
+    description: "Scan git history for previously committed secrets. Requires actions/checkout with fetch-depth: 0."
+    required: false
+    default: "false"
+  config:
+    description: "Path to a .dotenv-doctor.json config file"
+    required: false
+    default: ""
+  sarif-file:
+    description: "When format is sarif, path to write the SARIF report"
+    required: false
+    default: "dotenv-doctor.sarif"
   version:
     description: "dotenv-doctor version to run"
     required: false
     default: "latest"
+
+outputs:
+  sarif-file:
+    description: "Path to the written SARIF file when format is sarif"
+    value: ${{ steps.doctor.outputs.sarif-file }}
 
 runs:
   using: "composite"
@@ -31,19 +52,39 @@ runs:
       with:
         node-version: 22
     - name: Run dotenv-doctor
+      id: doctor
       shell: bash
       env:
         DD_ENV: ${{ inputs.env }}
         DD_EXAMPLE: ${{ inputs.example }}
         DD_DISABLE: ${{ inputs.disable }}
+        DD_FORMAT: ${{ inputs.format }}
+        DD_HISTORY: ${{ inputs.history }}
+        DD_CONFIG: ${{ inputs.config }}
+        DD_SARIF_FILE: ${{ inputs.sarif-file }}
         DD_VERSION: ${{ inputs.version }}
       run: |
-        ARGS=(--env "$DD_ENV" --example "$DD_EXAMPLE" --no-color)
+        set +e
+        ARGS=(--env "$DD_ENV" --example "$DD_EXAMPLE" --no-color --format "$DD_FORMAT")
         if [ -n "$DD_DISABLE" ]; then
           ARGS+=(--disable "$DD_DISABLE")
+        fi
+        if [ "$DD_HISTORY" = "true" ]; then
+          ARGS+=(--history)
+        fi
+        if [ -n "$DD_CONFIG" ]; then
+          ARGS+=(--config "$DD_CONFIG")
+        fi
+        if [ "$DD_FORMAT" = "sarif" ]; then
+          ARGS+=(--output "$DD_SARIF_FILE")
         fi
         if [ "$DD_VERSION" = "latest" ]; then
           npx --yes @raikux/dotenv-doctor "${ARGS[@]}"
         else
           npx --yes "@raikux/dotenv-doctor@$DD_VERSION" "${ARGS[@]}"
         fi
+        status=$?
+        if [ "$DD_FORMAT" = "sarif" ]; then
+          echo "sarif-file=$DD_SARIF_FILE" >> "$GITHUB_OUTPUT"
+        fi
+        exit $status
