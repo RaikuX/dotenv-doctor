@@ -1,9 +1,11 @@
 #!/usr/bin/env node
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { auditFiles, RULE_NAMES } from "./audit.js";
-import { renderReport, renderJson } from "./report.js";
+import { auditFiles, mergeIssues, RULE_NAMES } from "./audit.js";
+import { renderReport, renderJson, renderSarif } from "./report.js";
 import { applyFix } from "./fixer.js";
+import { loadConfig } from "./config.js";
+import { scanGitHistory } from "./history.js";
 
 const VERSION = (() => {
   try {
@@ -14,25 +16,31 @@ const VERSION = (() => {
   }
 })();
 
+export type OutputFormat = "text" | "json" | "sarif";
+
 interface Args {
-  env: string;
-  example: string;
+  env?: string;
+  example?: string;
   disable: string[];
+  disableProvided: boolean;
   noColor: boolean;
-  format: "text" | "json";
+  format: OutputFormat;
   fix: boolean;
+  history: boolean;
+  config?: string;
+  output?: string;
   version: boolean;
   help: boolean;
 }
 
 function parseArgs(argv: string[]): { args?: Args; error?: string } {
   const args: Args = {
-    env: ".env",
-    example: ".env.example",
     disable: [],
+    disableProvided: false,
     noColor: !process.stdout.isTTY || process.env.NO_COLOR != null,
     format: "text",
     fix: false,
+    history: false,
     version: false,
     help: false,
   };
@@ -42,29 +50,38 @@ function parseArgs(argv: string[]): { args?: Args; error?: string } {
     switch (a) {
       case "--env":
       case "--example":
-      case "--disable": {
+      case "--disable":
+      case "--config":
+      case "--output": {
         const val = argv[++i];
         if (val == null || val.startsWith("--")) {
           return { error: `flag "${a}" requires a value` };
         }
         if (a === "--env") args.env = val;
         else if (a === "--example") args.example = val;
-        else
+        else if (a === "--config") args.config = val;
+        else if (a === "--output") args.output = val;
+        else {
+          args.disableProvided = true;
           args.disable.push(
             ...val.split(",").map((s) => s.trim()).filter(Boolean),
           );
+        }
         break;
       }
       case "--format": {
         const val = argv[++i];
-        if (val !== "text" && val !== "json") {
-          return { error: `--format must be "text" or "json"` };
+        if (val !== "text" && val !== "json" && val !== "sarif") {
+          return { error: `--format must be "text", "json", or "sarif"` };
         }
         args.format = val;
         break;
       }
       case "--fix":
         args.fix = true;
+        break;
+      case "--history":
+        args.history = true;
         break;
       case "--no-color":
         args.noColor = true;
@@ -98,7 +115,13 @@ Options:
   --example <path>    path to the example/template   (default: .env.example)
   --fix               sync both files safely: append missing keys to .env,
                       document undocumented keys in .env.example (never removes)
-  --format <text|json> output style; json is stable for CI/machines
+  --format <text|json|sarif>
+                      output style; json/sarif are stable for CI
+  --output <path>     write the report to a file instead of stdout
+  --history           scan git history for previously committed secrets
+                      (requires git and a full clone; CI: fetch-depth: 0)
+  --config <path>     config file (default: .dotenv-doctor.json, then
+                      package.json "dotenv-doctor")
   --disable <rules>   comma-separated rules to skip  (e.g. drift,type)
   --no-color          disable colored output (also honors NO_COLOR env var)
   -V, --version       print version
@@ -113,10 +136,22 @@ Rules:
   duplicate     the same key defined more than once (last one wins)
   secret        committed credential or high-entropy secret
 
+Config:
+  .dotenv-doctor.json (or package.json#dotenv-doctor) may set env, example,
+  disable, and types. CLI flags override the config file.
+
 Exit codes:
   0  all checks passed
   1  issues found
   2  runtime error`;
+}
+
+function emit(text: string, output?: string): void {
+  if (output) {
+    writeFileSync(output, text.endsWith("\n") ? text : text + "\n", "utf8");
+  } else {
+    console.log(text);
+  }
 }
 
 let parsed: ReturnType<typeof parseArgs>;
@@ -144,7 +179,23 @@ if (args.version) {
   process.exit(0);
 }
 
-const unknownRules = args.disable.filter((r) => !RULE_NAMES.includes(r));
+if (args.fix && args.history) {
+  console.error("dotenv-doctor: --history cannot be combined with --fix");
+  process.exit(2);
+}
+
+const fileConfig = loadConfig({ configPath: args.config });
+if ("error" in fileConfig) {
+  console.error(`dotenv-doctor: ${fileConfig.error}`);
+  process.exit(2);
+}
+
+const env = args.env ?? fileConfig.env ?? ".env";
+const example = args.example ?? fileConfig.example ?? ".env.example";
+const disable = args.disableProvided ? args.disable : (fileConfig.disable ?? []);
+const types = fileConfig.types ?? {};
+
+const unknownRules = disable.filter((r) => !RULE_NAMES.includes(r));
 if (unknownRules.length > 0) {
   console.error(
     `dotenv-doctor: unknown rule(s): ${unknownRules.join(", ")}\nValid rules: ${RULE_NAMES.join(", ")}`,
@@ -154,36 +205,52 @@ if (unknownRules.length > 0) {
 
 try {
   if (args.fix) {
-    const fix = applyFix(args.env, args.example);
+    const fix = applyFix(env, example);
     if ("error" in fix) {
       console.error(`dotenv-doctor: ${fix.error}`);
       process.exit(2);
     }
     if (args.format === "json") {
-      console.log(JSON.stringify(fix, null, 2));
+      emit(JSON.stringify(fix, null, 2), args.output);
+    } else if (args.format === "sarif") {
+      console.error("dotenv-doctor: --format sarif is not valid with --fix");
+      process.exit(2);
     } else {
+      const lines: string[] = [];
       for (const key of fix.addedToEnv) {
-        console.log(`added   ${key} to ${args.env}`);
+        lines.push(`added   ${key} to ${env}`);
       }
       for (const key of fix.documentedInExample) {
-        console.log(`documented ${key} in ${args.example}`);
+        lines.push(`documented ${key} in ${example}`);
       }
       if (fix.createdExample) {
-        console.log(`created ${args.example} from scratch`);
+        lines.push(`created ${example} from scratch`);
       }
       if (fix.addedToEnv.length === 0 && fix.documentedInExample.length === 0) {
-        console.log("nothing to fix — files already in sync");
+        lines.push("nothing to fix — files already in sync");
       }
+      emit(lines.join("\n"), args.output);
     }
     process.exit(0);
   }
 
-  const result = auditFiles(args.env, args.example, { disabled: args.disable });
+  const result = auditFiles(env, example, { disabled: disable, types });
+
+  if (args.history) {
+    const hist = scanGitHistory();
+    if ("error" in hist) {
+      console.error(`dotenv-doctor: ${hist.error}`);
+      process.exit(2);
+    }
+    result.issues = mergeIssues(result.issues, hist.issues);
+  }
 
   if (args.format === "json") {
-    console.log(renderJson(result, VERSION));
+    emit(renderJson(result, VERSION), args.output);
+  } else if (args.format === "sarif") {
+    emit(renderSarif(result, VERSION), args.output);
   } else {
-    console.log(renderReport(result, !args.noColor));
+    emit(renderReport(result, !args.noColor), args.output);
     const missingCount = result.issues.filter((i) => i.rule === "missing").length;
     const driftCount = result.issues.filter((i) => i.rule === "drift").length;
     if (missingCount > 0 || driftCount > 0) {

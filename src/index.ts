@@ -1,8 +1,12 @@
 export { parseEnvFile } from "./parser.js";
 export type { EnvVar, ParseResult } from "./parser.js";
-export { auditFiles, RULE_NAMES } from "./audit.js";
+export { auditFiles, mergeIssues, RULE_NAMES } from "./audit.js";
 export type { AuditResult, AuditOptions } from "./audit.js";
 export { applyFix } from "./fixer.js";
 export type { FixResult } from "./fixer.js";
-export { renderReport, renderJson } from "./report.js";
+export { renderReport, renderJson, renderSarif, toSarifUri } from "./report.js";
+export { loadConfig } from "./config.js";
+export type { FileConfig, LoadConfigOptions } from "./config.js";
+export { scanGitHistory, isEnvHistoryPath } from "./history.js";
+export type { HistoryScanOptions } from "./history.js";
 export * from "./types.js";

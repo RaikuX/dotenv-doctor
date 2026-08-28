@@ -11,7 +11,17 @@ async function loadLib() {
 
 test("public library API exposes the documented surface", async () => {
   const lib = await loadLib();
-  for (const name of ["auditFiles", "parseEnvFile", "renderReport", "RULE_NAMES"]) {
+  for (const name of [
+    "auditFiles",
+    "parseEnvFile",
+    "renderReport",
+    "renderJson",
+    "renderSarif",
+    "loadConfig",
+    "scanGitHistory",
+    "applyFix",
+    "RULE_NAMES",
+  ]) {
     assert.ok(name in lib, `missing export: ${name}`);
   }
   assert.deepEqual(

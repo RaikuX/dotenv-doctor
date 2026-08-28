@@ -1,6 +1,6 @@
 {
   "name": "@raikux/dotenv-doctor",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Zero-dependency CLI that audits .env hygiene: missing vars, placeholder secrets, committed credentials, and type mismatches.",
   "type": "module",
   "engines": {

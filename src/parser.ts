@@ -50,9 +50,9 @@ export function parseEnvFile(content: string): ParseResult {
     const match = LINE_RE.exec(raw);
     if (!match) {
       if (/^\s*(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*\s*$/.test(raw)) {
-        errors.push(`Line ${i + 1}: key "${trimmed}" has no value (missing "=")`);
+        errors.push(`Line ${i + 1}: key has no value (missing "=")`);
       } else if (!raw.includes("=")) {
-        errors.push(`Line ${i + 1}: invalid entry "${trimmed}"`);
+        errors.push(`Line ${i + 1}: invalid entry`);
       }
       continue;
     }

@@ -4,6 +4,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { auditFiles } from "../src/audit.js";
+import { renderJson, renderSarif } from "../src/report.js";
 
 function setup(envContent: string, exampleContent: string) {
   const dir = mkdtempSync(join(tmpdir(), "dd-mask-"));
@@ -56,4 +57,16 @@ test("boolean flags like Prisma DATABASE_URL_DIRECT are not URL-checked", () => 
     0,
     "boolean _DIRECT flag must not be treated as a URL",
   );
+});
+
+test("json and sarif reports never leak a committed AWS key", () => {
+  const secret = "AKIAIOSFODNN7EXAMPLE";
+  const { envPath, exPath } = setup(`AWS_ACCESS_KEY_ID=${secret}\n`, "AWS_ACCESS_KEY_ID=\n");
+  const r = auditFiles(envPath, exPath);
+  const json = renderJson(r, "0.3.0");
+  const sarif = renderSarif(r, "0.3.0");
+  assert.ok(!json.includes(secret));
+  assert.ok(!sarif.includes(secret));
+  assert.ok(json.includes("secret"));
+  assert.ok(sarif.includes("secret"));
 });

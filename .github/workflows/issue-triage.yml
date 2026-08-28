@@ -61,7 +61,7 @@ jobs:
           LABEL=$(printf '%s' "$OUTPUT" | head -n 1 | tr -d '[:space:]')
           case "$LABEL" in
             bug|enhancement|documentation|question)
-              gh issue label "$NUMBER" --add "$LABEL"
+              gh issue edit "$NUMBER" --add-label "$LABEL"
               ;;
             *)
               echo "Codex returned unrecognized label '$LABEL'; skipping label."

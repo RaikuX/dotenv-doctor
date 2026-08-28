@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-28
+
+### Added
+
+- `--format sarif`: SARIF 2.1.0 output suitable for `github/codeql-action/upload-sarif`. Findings map to the env file path and rule ids; raw secret values and source snippets are never included
+- `--output <path>`: write the report (text/json/sarif) to a file
+- `--history`: scan git history for previously committed secrets using the existing secret rule (`.env`, `.env.*`, `*.env` only; skips `node_modules` and binary blobs; deduplicates by file+key). Requires a full clone (`fetch-depth: 0`). Clear exit-2 errors if git/history is missing or the clone is shallow
+- Config file: `.dotenv-doctor.json` and optional `package.json` `"dotenv-doctor"` field for `env`, `example`, `disable`, and custom `types` annotations. CLI flags override config
+- GitHub Action inputs: `format`, `history`, `config`, `sarif-file`; `sarif-file` output for code-scanning upload
+
+### Fixed
+
+- Parser errors no longer echo the raw malformed line (could leak a secret that was not `KEY=value`)
+- Codex issue-triage workflow used `gh issue label`, which is not a gh command; it now uses `gh issue edit --add-label`
+- README Codex workflow paths now match the files in `.github/workflows/`
+- `package-lock.json` version had drifted behind `package.json`
+
 ## [0.2.0] - 2026-08-23
 
 ### Added
